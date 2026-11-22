@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import Navbar from '@/components/Navbar.jsx';
 import EventCard from '@/components/EventCard.jsx';
@@ -70,9 +71,9 @@ export default function Dashboard() {
     setBookingId(eventId);
     setAlert(null);
     try {
-      await registerForEvent(eventId);
+      const res = await registerForEvent(eventId);
       markBooked(eventId);
-      setAlert({ type: 'success', message: 'Seat booked. You can find it under My bookings.' });
+      setAlert({ type: 'success', message: 'Seat booked. You can find it under My bookings.', registrationId: res.data?.registrationId });
       if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         confetti({ particleCount: 90, spread: 70, origin: { y: 0.7 }, colors: ['sand', 'ash', 'mist'].map(token) });
       }
@@ -112,6 +113,11 @@ export default function Dashboard() {
               <AlertDescription className="text-mist">
                 <span className="font-semibold">{isError ? 'Booking failed: ' : 'Booked: '}</span>
                 {alert.message}
+                {alert.registrationId && (
+                  <Link to={`/tickets/${alert.registrationId}`} className="ml-2 font-semibold text-sand underline underline-offset-4">
+                    View ticket
+                  </Link>
+                )}
               </AlertDescription>
               <Button variant="ghost" size="sm" onClick={() => setAlert(null)} className="text-mist hover:bg-raised">
                 Dismiss

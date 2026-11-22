@@ -38,4 +38,8 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
      */
     @Query("SELECT r FROM Registration r JOIN FETCH r.event WHERE r.user.id = :userId ORDER BY r.registeredAt DESC")
     List<Registration> findByUserId(@Param("userId") Long userId);
+
+    /** One booking with its event and user loaded, for the ticket page. */
+    @Query("SELECT r FROM Registration r JOIN FETCH r.event JOIN FETCH r.user WHERE r.id = :id")
+    java.util.Optional<Registration> findWithDetailsById(@Param("id") Long id);
 }

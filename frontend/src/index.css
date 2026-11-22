@@ -146,3 +146,24 @@
     @apply outline-2 outline-offset-2 outline-ring;
   }
 }
+/* Printing a ticket: hide the site chrome and show only the ticket, dark on white. */
+@media print {
+  nav,
+  [data-print="hide"] {
+    display: none !important;
+  }
+  .fixed {
+    display: none !important;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  [data-print="ticket"],
+  [data-print="ticket"] * {
+    background: #fff !important;
+    color: #000 !important;
+    border-color: #000 !important;
+    box-shadow: none !important;
+  }
+}

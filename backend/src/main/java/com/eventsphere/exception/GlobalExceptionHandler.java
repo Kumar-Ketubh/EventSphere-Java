@@ -34,6 +34,24 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles unknown bookings → HTTP 404.
+     */
+    @ExceptionHandler(RegistrationNotFoundException.class)
+    public ResponseEntity<MessageResponse> handleRegistrationNotFound(RegistrationNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new MessageResponse(ex.getMessage()));
+    }
+
+    /**
+     * Handles someone else's booking → HTTP 403.
+     */
+    @ExceptionHandler(RegistrationForbiddenException.class)
+    public ResponseEntity<MessageResponse> handleRegistrationForbidden(RegistrationForbiddenException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new MessageResponse(ex.getMessage()));
+    }
+
+    /**
      * Handles duplicate registration attempts → HTTP 409 Conflict.
      */
     @ExceptionHandler(AlreadyRegisteredException.class)

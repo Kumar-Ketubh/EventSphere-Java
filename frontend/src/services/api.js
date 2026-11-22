@@ -93,4 +93,9 @@ export const registerForEvent = (eventId) =>
  */
 export const getProfile = () => api.get('/me/profile');
 
+// ─── Ticket API ───────────────────────────────────────────────────────────
+
+/** Fetches one of the logged-in user's tickets (event, student, booking code). */
+export const getTicket = (id) => api.get(`/registrations/${id}`);
+
 export default api;

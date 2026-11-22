@@ -1,6 +1,7 @@
 package com.eventsphere.service;
 
 import com.eventsphere.dto.RegistrationResponse;
+import com.eventsphere.dto.TicketResponse;
 
 /**
  * Service interface for seat registration operations.
@@ -26,4 +27,12 @@ public interface RegistrationService {
      * @return a {@link RegistrationResponse} with the confirmed booking details
      */
     RegistrationResponse registerUserForEvent(Long userId, Long eventId);
+
+    /**
+     * Returns the ticket for a booking, only if it belongs to the given user.
+     *
+     * @throws com.eventsphere.exception.RegistrationNotFoundException  if no such booking
+     * @throws com.eventsphere.exception.RegistrationForbiddenException if it is someone else's
+     */
+    TicketResponse getTicket(Long userId, Long registrationId);
 }
