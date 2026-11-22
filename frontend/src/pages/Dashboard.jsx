@@ -1,40 +1,58 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import Navbar from '../components/Navbar.jsx';
-import EventCard from '../components/EventCard.jsx';
-import { getDashboard, registerForEvent } from '../services/api.js';
+import { useCallback, useEffect, useState } from 'react';
+import confetti from 'canvas-confetti';
+import Navbar from '@/components/Navbar.jsx';
+import EventCard from '@/components/EventCard.jsx';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { BlurFade } from '@/components/ui/blur-fade';
+import { Button } from '@/components/ui/button';
+import { TextAnimate } from '@/components/ui/text-animate';
+import { cn } from '@/lib/utils';
+import { token } from '@/lib/theme';
+import { getDashboard, getProfile, registerForEvent } from '@/services/api.js';
 
-/**
- * Dashboard Page Component.
- *
- * Fetches dynamic categorized event lists from Spring Boot backend:
- * - Live Events (active now)
- * - Upcoming Events (open for booking)
- * - Previous Events (concluded)
- *
- * @returns {JSX.Element}
- */
-function Dashboard() {
-  const [dashboardData, setDashboardData] = useState({
-    live: [],
-    upcoming: [],
-    previous: [],
-  });
+
+function readFirstName() {
+  try {
+    const user = JSON.parse(localStorage.getItem('user'));
+    return (user && typeof user.name === 'string' && user.name.trim().split(/\s+/)[0]) || '';
+  } catch {
+    return '';
+  }
+}
+
+function Section({ title, events, empty, children }) {
+  return (
+    <section className="mt-14">
+      <BlurFade delay={0.35}>
+        <h2 className="font-display text-3xl font-extrabold text-mist">
+          {title} <span className="font-extralight text-ash">({events.length})</span>
+        </h2>
+      </BlurFade>
+      {events.length === 0 ? (
+        <p className="mt-3 text-ash">{empty}</p>
+      ) : (
+        <ul className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{children}</ul>
+      )}
+    </section>
+  );
+}
+
+/** Dashboard: what is on now, coming up (bookable) and past. */
+export default function Dashboard() {
+  const [data, setData] = useState({ live: [], upcoming: [], previous: [] });
   const [loading, setLoading] = useState(true);
   const [bookingId, setBookingId] = useState(null);
-  const [alertInfo, setAlertInfo] = useState(null); // { type: 'success'|'danger', message: '' }
-
-  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const [bookedIds, setBookedIds] = useState(() => new Set());
+  const [alert, setAlert] = useState(null); // { type: 'success' | 'error', message }
+  const firstName = readFirstName();
+  const markBooked = (id) => setBookedIds((prev) => new Set(prev).add(id));
 
   const fetchEvents = useCallback(async () => {
     try {
       const response = await getDashboard();
-      setDashboardData(response.data);
-    } catch (err) {
-      console.error('Failed to load dashboard:', err);
-      setAlertInfo({
-        type: 'danger',
-        message: 'Could not connect to backend server. Make sure Spring Boot is running on port 8080.',
-      });
+      setData(response.data);
+    } catch {
+      setAlert({ type: 'error', message: 'The events list did not load. Check your connection and refresh the page.' });
     } finally {
       setLoading(false);
     }
@@ -42,182 +60,108 @@ function Dashboard() {
 
   useEffect(() => {
     fetchEvents();
+    // Which events this student already booked, so their tickets say so.
+    getProfile()
+      .then((res) => setBookedIds(new Set((res.data.registrations || []).map((r) => r.eventId))))
+      .catch(() => {});
   }, [fetchEvents]);
 
-  const handleRegisterSeat = async (eventId) => {
-    if (!currentUser.id) {
-      setAlertInfo({ type: 'danger', message: 'User session not found. Please re-login.' });
-      return;
-    }
-
+  const handleBook = async (eventId) => {
     setBookingId(eventId);
-    setAlertInfo(null);
-
+    setAlert(null);
     try {
-      await registerForEvent(eventId, currentUser.id);
-      setAlertInfo({
-        type: 'success',
-        message: '🎉 Seat successfully booked! You can verify your booking in your Profile.',
-      });
-      // Refresh event seat counts
+      await registerForEvent(eventId);
+      markBooked(eventId);
+      setAlert({ type: 'success', message: 'Seat booked. You can find it under My bookings.' });
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        confetti({ particleCount: 90, spread: 70, origin: { y: 0.7 }, colors: ['sand', 'ash', 'mist'].map(token) });
+      }
       await fetchEvents();
     } catch (err) {
-      setAlertInfo({
-        type: 'danger',
-        message: err.response?.data?.message || 'Seat booking failed. Please try again.',
-      });
+      if (err.response?.status === 409) markBooked(eventId);
+      setAlert({ type: 'error', message: err.response?.data?.message || 'Seat booking failed. Please try again.' });
     } finally {
       setBookingId(null);
     }
   };
 
+  const live = data.live || [];
+  const upcoming = data.upcoming || [];
+  const previous = data.previous || [];
+  const isError = alert?.type === 'error';
+
   return (
-    <div className="min-vh-100 bg-light">
+    <div className="min-h-dvh">
       <Navbar />
+      <main className="mx-auto max-w-6xl px-5 pt-12 pb-20 sm:px-8">
+        <h1 className="font-display text-6xl leading-none tracking-tight text-mist sm:text-7xl">
+          <TextAnimate as="span" by="word" animation="blurInUp" once startOnView={false} className="font-extralight">
+            {firstName ? `Hi, ${firstName}` : 'Hi there'}
+          </TextAnimate>
+        </h1>
+        <BlurFade delay={0.3}>
+          <p className="mt-4 max-w-xl text-ash">Pick an upcoming event and book your seat. Your seats are under My bookings.</p>
+        </BlurFade>
 
-      <main className="container py-4">
-        {/* Welcome Banner */}
-        <div className="bg-white border rounded-3 p-4 mb-4 shadow-sm">
-          <div className="row align-items-center">
-            <div className="col-md-8">
-              <h4 className="fw-bold text-dark mb-1">
-                Welcome back, {currentUser.name || 'Attendee'}! 👋
-              </h4>
-              <p className="text-muted small mb-0">
-                Explore campus happenings, reserve seats in advance, and manage your registrations.
-              </p>
-            </div>
-            <div className="col-md-4 text-md-end mt-3 mt-md-0">
-              <span className="badge bg-primary-subtle text-primary border border-primary-subtle p-2 px-3 rounded-pill">
-                <i className="bi bi-clock-history me-1"></i>
-                Real-Time Dynamic Timeline
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Global Alert Notification */}
-        {alertInfo && (
-          <div
-            className={`alert alert-${alertInfo.type} alert-dismissible fade show shadow-sm mb-4`}
-            role="alert"
-          >
-            <div className="d-flex align-items-center">
-              <i
-                className={`bi ${
-                  alertInfo.type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'
-                } me-2 fs-5`}
-              ></i>
-              <div>{alertInfo.message}</div>
-            </div>
-            <button
-              type="button"
-              className="btn-close"
-              onClick={() => setAlertInfo(null)}
-              aria-label="Close"
-            ></button>
-          </div>
+        {alert && (
+          <BlurFade>
+            <Alert
+              role={isError ? 'alert' : 'status'}
+              className={cn('mt-8 flex items-center justify-between gap-4', isError ? 'border-clay/50 bg-clay/10' : 'border-sand/40 bg-sand/10')}
+            >
+              <AlertDescription className="text-mist">
+                <span className="font-semibold">{isError ? 'Booking failed: ' : 'Booked: '}</span>
+                {alert.message}
+              </AlertDescription>
+              <Button variant="ghost" size="sm" onClick={() => setAlert(null)} className="text-mist hover:bg-raised">
+                Dismiss
+              </Button>
+            </Alert>
+          </BlurFade>
         )}
 
         {loading ? (
-          <div className="text-center py-5">
-            <div className="spinner-border text-primary mb-3" role="status"></div>
-            <p className="text-muted">Loading campus events...</p>
-          </div>
+          <p className="mt-14 text-ash" role="status">
+            Loading events...
+          </p>
         ) : (
           <>
-            {/* 1. Live Events Section */}
-            <section className="mb-5">
-              <div className="d-flex align-items-center mb-3">
-                <h5 className="section-header live mb-0">
-                  <i className="bi bi-broadcast text-success me-2"></i>
-                  Live Events Now
-                </h5>
-                <span className="badge bg-success ms-2">
-                  {dashboardData.live?.length || 0}
-                </span>
-              </div>
-
-              {dashboardData.live?.length === 0 ? (
-                <div className="card bg-white border-0 shadow-sm p-4 text-center text-muted">
-                  <i className="bi bi-calendar-event fs-3 mb-2 text-secondary"></i>
-                  <p className="mb-0">No events are happening at this precise moment.</p>
-                </div>
-              ) : (
-                <div className="row g-3">
-                  {dashboardData.live.map((event) => (
-                    <div key={event.id} className="col-md-6 col-lg-4">
-                      <EventCard event={event} type="live" />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {/* 2. Upcoming Events Section */}
-            <section className="mb-5">
-              <div className="d-flex align-items-center mb-3">
-                <h5 className="section-header upcoming mb-0">
-                  <i className="bi bi-calendar-plus text-primary me-2"></i>
-                  Upcoming Events (Registration Open)
-                </h5>
-                <span className="badge bg-primary ms-2">
-                  {dashboardData.upcoming?.length || 0}
-                </span>
-              </div>
-
-              {dashboardData.upcoming?.length === 0 ? (
-                <div className="card bg-white border-0 shadow-sm p-4 text-center text-muted">
-                  <i className="bi bi-calendar-check fs-3 mb-2 text-secondary"></i>
-                  <p className="mb-0">No upcoming events scheduled right now.</p>
-                </div>
-              ) : (
-                <div className="row g-3">
-                  {dashboardData.upcoming.map((event) => (
-                    <div key={event.id} className="col-md-6 col-lg-4">
-                      <EventCard
-                        event={event}
-                        type="upcoming"
-                        onRegister={handleRegisterSeat}
-                        isBooking={bookingId === event.id}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {/* 3. Previous Events Section */}
-            <section className="mb-4">
-              <div className="d-flex align-items-center mb-3">
-                <h5 className="section-header previous mb-0">
-                  <i className="bi bi-archive text-secondary me-2"></i>
-                  Previous Events (Concluded)
-                </h5>
-                <span className="badge bg-secondary ms-2">
-                  {dashboardData.previous?.length || 0}
-                </span>
-              </div>
-
-              {dashboardData.previous?.length === 0 ? (
-                <div className="card bg-white border-0 shadow-sm p-4 text-center text-muted">
-                  <p className="mb-0">No past events found.</p>
-                </div>
-              ) : (
-                <div className="row g-3">
-                  {dashboardData.previous.map((event) => (
-                    <div key={event.id} className="col-md-6 col-lg-4">
-                      <EventCard event={event} type="previous" />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
+            <Section title="On now" events={live} empty="Nothing on right now. Check what is coming up below.">
+              {live.map((e, i) => (
+                <BlurFade key={e.id} delay={0.45 + i * 0.08}>
+                  <li className="h-full">
+                    <EventCard event={e} type="live" />
+                  </li>
+                </BlurFade>
+              ))}
+            </Section>
+            <Section title="Coming up" events={upcoming} empty="No upcoming events yet. Check back soon for new ones.">
+              {upcoming.map((e, i) => (
+                <BlurFade key={e.id} delay={0.45 + i * 0.08}>
+                  <li className="h-full">
+                    <EventCard
+                      event={e}
+                      type="upcoming"
+                      onRegister={handleBook}
+                      isBooking={bookingId === e.id}
+                      isBooked={bookedIds.has(e.id)}
+                    />
+                  </li>
+                </BlurFade>
+              ))}
+            </Section>
+            <Section title="Past events" events={previous} empty="No past events yet.">
+              {previous.map((e, i) => (
+                <BlurFade key={e.id} delay={0.45 + i * 0.08}>
+                  <li className="h-full">
+                    <EventCard event={e} type="previous" />
+                  </li>
+                </BlurFade>
+              ))}
+            </Section>
           </>
         )}
       </main>
     </div>
   );
 }
-
-export default Dashboard;

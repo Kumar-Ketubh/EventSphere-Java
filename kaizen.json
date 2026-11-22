@@ -1,0 +1,27 @@
+{
+  "tracker": "local",
+  "checks": {
+    "fast": [],
+    "full": [
+      {
+        "name": "backend: maven test",
+        "run": "cd backend && mvn -q test",
+        "timeoutSec": 900
+      },
+      {
+        "name": "frontend: build",
+        "run": "cd frontend && npm run build --silent"
+      }
+    ]
+  },
+  "ui": {
+    "enabled": true,
+    "dirs": [
+      "frontend/src"
+    ],
+    "tokensFile": "frontend/src/index.css",
+    "ignore": [
+      "frontend/src/components/ui"
+    ]
+  }
+}

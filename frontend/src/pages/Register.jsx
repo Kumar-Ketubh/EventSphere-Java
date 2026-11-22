@@ -1,163 +1,77 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { registerUser } from '../services/api.js';
+import AuthLayout from '@/components/AuthLayout.jsx';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { registerUser, saveSession } from '@/services/api.js';
 
-/**
- * Registration Page Component.
- *
- * Captures user profile fields and creates a new account via /api/auth/register.
- *
- * @returns {JSX.Element}
- */
-function Register() {
+const FIELDS = [
+  { name: 'name', label: 'Full name', type: 'text', placeholder: 'Alex Johnson', autoComplete: 'name' },
+  { name: 'rollNumber', label: 'Roll number or faculty ID', type: 'text', placeholder: 'CS2024001' },
+  { name: 'email', label: 'College email', type: 'email', placeholder: 'alex@college.edu', autoComplete: 'email' },
+  { name: 'password', label: 'Password', type: 'password', autoComplete: 'new-password' },
+];
+
+/** Sign-up page: creates the account and logs straight in. */
+export default function Register() {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    rollNumber: '',
-  });
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', rollNumber: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
       const response = await registerUser(formData);
-      localStorage.setItem('user', JSON.stringify(response.data));
+      saveSession(response.data);
       navigate('/dashboard');
     } catch (err) {
-      setError(
-        err.response?.data?.message || 'Registration failed. Please try again.'
-      );
+      setError(err.response?.data?.message || 'We could not create your account. Check the details and try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="auth-wrapper">
-      <div className="card auth-card p-4 p-sm-5">
-        <div className="text-center mb-4">
-          <div className="d-inline-flex align-items-center justify-content-center bg-primary text-white rounded-circle mb-3" style={{ width: '60px', height: '60px' }}>
-            <i className="bi bi-person-plus-fill fs-3"></i>
-          </div>
-          <h3 className="fw-bold text-dark mb-1">Create Account</h3>
-          <p className="text-muted small">Register as Attendee (Student/Faculty)</p>
-        </div>
-
-        {error && (
-          <div className="alert alert-danger py-2 small d-flex align-items-center mb-3">
-            <i className="bi bi-exclamation-octagon-fill me-2 fs-5"></i>
-            <div>{error}</div>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <div className="mb-3">
-            <label className="form-label small fw-semibold text-secondary">Full Name</label>
-            <div className="input-group">
-              <span className="input-group-text bg-light text-muted">
-                <i className="bi bi-person-fill"></i>
-              </span>
-              <input
-                type="text"
-                name="name"
-                className="form-control"
-                value={formData.name}
-                onChange={handleChange}
-                placeholder="Alex Johnson"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="mb-3">
-            <label className="form-label small fw-semibold text-secondary">Roll Number / Faculty ID</label>
-            <div className="input-group">
-              <span className="input-group-text bg-light text-muted">
-                <i className="bi bi-card-text"></i>
-              </span>
-              <input
-                type="text"
-                name="rollNumber"
-                className="form-control"
-                value={formData.rollNumber}
-                onChange={handleChange}
-                placeholder="CS2024001"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="mb-3">
-            <label className="form-label small fw-semibold text-secondary">College Email Address</label>
-            <div className="input-group">
-              <span className="input-group-text bg-light text-muted">
-                <i className="bi bi-envelope-fill"></i>
-              </span>
-              <input
-                type="email"
-                name="email"
-                className="form-control"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="alex@college.edu"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="mb-4">
-            <label className="form-label small fw-semibold text-secondary">Password</label>
-            <div className="input-group">
-              <span className="input-group-text bg-light text-muted">
-                <i className="bi bi-key-fill"></i>
-              </span>
-              <input
-                type="password"
-                name="password"
-                className="form-control"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="••••••••"
-                required
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn btn-primary w-100 py-2 fw-semibold mb-3 shadow-sm"
-          >
-            {loading ? (
-              <>
-                <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                Creating account...
-              </>
-            ) : (
-              'Complete Registration'
-            )}
-          </button>
-        </form>
-
-        <div className="text-center small text-secondary">
-          Already registered?{' '}
-          <Link to="/" className="text-primary text-decoration-none fw-semibold">
-            Sign In here
+    <AuthLayout
+      title="Create account"
+      intro="For students and faculty. It takes a minute."
+      error={error}
+      footer={
+        <p>
+          Already have an account?{' '}
+          <Link to="/login" className="font-semibold text-sand underline underline-offset-4">
+            Log in
           </Link>
-        </div>
-      </div>
-    </div>
+        </p>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {FIELDS.map((f) => (
+          <div key={f.name} className="space-y-2">
+            <Label htmlFor={`reg-${f.name}`}>{f.label}</Label>
+            <Input
+              id={`reg-${f.name}`}
+              name={f.name}
+              type={f.type}
+              className="h-11 bg-surface text-mist"
+              value={formData[f.name]}
+              onChange={handleChange}
+              placeholder={f.placeholder}
+              autoComplete={f.autoComplete}
+              required
+            />
+          </div>
+        ))}
+        <Button type="submit" variant="accent" size="xl" className="w-full" disabled={loading}>
+          {loading ? 'Creating account...' : 'Create account'}
+        </Button>
+      </form>
+    </AuthLayout>
   );
 }
-
-export default Register;

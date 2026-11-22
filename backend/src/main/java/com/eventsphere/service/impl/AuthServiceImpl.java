@@ -1,5 +1,6 @@
 package com.eventsphere.service.impl;
 
+import com.eventsphere.dto.AuthResponse;
 import com.eventsphere.dto.LoginRequest;
 import com.eventsphere.dto.RegisterRequest;
 import com.eventsphere.dto.UserResponse;
@@ -8,6 +9,7 @@ import com.eventsphere.exception.BadCredentialsException;
 import com.eventsphere.exception.UserNotFoundException;
 import com.eventsphere.repository.UserRepository;
 import com.eventsphere.service.AuthService;
+import com.eventsphere.service.TokenService;
 import org.springframework.stereotype.Service;
 
 /**
@@ -17,13 +19,15 @@ import org.springframework.stereotype.Service;
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
+    private final TokenService tokenService;
 
-    public AuthServiceImpl(UserRepository userRepository) {
+    public AuthServiceImpl(UserRepository userRepository, TokenService tokenService) {
         this.userRepository = userRepository;
+        this.tokenService = tokenService;
     }
 
     @Override
-    public UserResponse register(RegisterRequest request) {
+    public AuthResponse register(RegisterRequest request) {
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
@@ -32,11 +36,11 @@ public class AuthServiceImpl implements AuthService {
                 .build();
 
         User saved = userRepository.save(user);
-        return mapToUserResponse(saved);
+        return toAuthResponse(saved);
     }
 
     @Override
-    public UserResponse login(LoginRequest request) {
+    public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new UserNotFoundException(
                         "No account found with email: " + request.getEmail()));
@@ -45,7 +49,11 @@ public class AuthServiceImpl implements AuthService {
             throw new BadCredentialsException("Incorrect password. Please try again.");
         }
 
-        return mapToUserResponse(user);
+        return toAuthResponse(user);
+    }
+
+    private AuthResponse toAuthResponse(User user) {
+        return new AuthResponse(tokenService.issue(user), mapToUserResponse(user));
     }
 
     private UserResponse mapToUserResponse(User user) {

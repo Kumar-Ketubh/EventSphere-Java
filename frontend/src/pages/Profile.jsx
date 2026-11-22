@@ -1,203 +1,109 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import Navbar from '../components/Navbar.jsx';
-import { getProfile } from '../services/api.js';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import Navbar from '@/components/Navbar.jsx';
+import DateBlock from '@/components/DateBlock.jsx';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AnimatedList } from '@/components/ui/animated-list';
+import { BlurFade } from '@/components/ui/blur-fade';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { TextAnimate } from '@/components/ui/text-animate';
+import { getProfile } from '@/services/api.js';
+import { formatMoment, formatRange } from '@/utils/dates.js';
 
-/**
- * Profile Page Component.
- *
- * Displays user identity and confirmed event registrations for cross-verification.
- *
- * @returns {JSX.Element}
- */
-function Profile() {
-  const navigate = useNavigate();
-  const [profileData, setProfileData] = useState(null);
+/** My bookings: the student's details, then every event they hold a seat for. */
+export default function Profile() {
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-
   useEffect(() => {
-    if (!currentUser.id) {
-      navigate('/');
-      return;
-    }
+    getProfile()
+      .then((res) => setProfile(res.data))
+      .catch(() =>
+        setError('We could not load your bookings. Check your connection and refresh the page. If it keeps failing, log out and log in again.'),
+      )
+      .finally(() => setLoading(false));
+  }, []);
 
-    const loadProfile = async () => {
-      try {
-        const response = await getProfile(currentUser.id);
-        setProfileData(response.data);
-      } catch (err) {
-        console.error('Failed to fetch profile:', err);
-        setError('Failed to retrieve profile data from server.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadProfile();
-  }, [currentUser.id, navigate]);
-
-  const formatDate = (isoString) => {
-    if (!isoString) return '—';
-    const date = new Date(isoString);
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const registrations = profile?.registrations || [];
+  const user = profile?.user;
 
   return (
-    <div className="min-vh-100 bg-light">
+    <div className="min-h-dvh">
       <Navbar />
-
-      <main className="container py-4">
-        <div className="d-flex justify-content-between align-items-center mb-4">
-          <div>
-            <h3 className="fw-bold text-dark mb-1">
-              <i className="bi bi-person-badge-fill text-primary me-2"></i>
-              Attendee Profile
-            </h3>
-            <p className="text-muted small mb-0">
-              Manage your identity and verify all confirmed seat bookings.
-            </p>
-          </div>
-          <Link to="/dashboard" className="btn btn-outline-primary btn-sm">
-            <i className="bi bi-arrow-left me-1"></i> Back to Dashboard
-          </Link>
-        </div>
+      <main className="mx-auto max-w-3xl px-5 pt-12 pb-20 sm:px-8">
+        <h1 className="font-display text-6xl leading-none tracking-tight text-mist sm:text-7xl">
+          <TextAnimate as="span" by="word" animation="blurInUp" once startOnView={false} className="font-extralight">
+            My bookings
+          </TextAnimate>
+        </h1>
 
         {error && (
-          <div className="alert alert-danger py-2 small d-flex align-items-center mb-4">
-            <i className="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
-            <div>{error}</div>
-          </div>
+          <Alert role="alert" className="mt-8 border-clay/50 bg-clay/10">
+            <AlertDescription className="text-mist">{error}</AlertDescription>
+          </Alert>
+        )}
+        {loading && (
+          <p className="mt-8 text-ash" role="status">
+            Loading your bookings...
+          </p>
         )}
 
-        {loading ? (
-          <div className="text-center py-5">
-            <div className="spinner-border text-primary mb-3" role="status"></div>
-            <p className="text-muted">Loading your profile and bookings...</p>
-          </div>
-        ) : profileData ? (
-          <div className="row g-4">
-            {/* User Identity Card */}
-            <div className="col-lg-4">
-              <div className="card profile-card p-4 h-100">
-                <div className="text-center mb-4">
-                  <div
-                    className="d-inline-flex align-items-center justify-content-center bg-primary text-white rounded-circle mb-3 shadow-sm"
-                    style={{ width: '80px', height: '80px', fontSize: '2rem' }}
-                  >
-                    {profileData.user.name?.charAt(0).toUpperCase()}
-                  </div>
-                  <h5 className="fw-bold mb-1">{profileData.user.name}</h5>
-                  <span className="badge bg-secondary-subtle text-secondary border">
-                    {profileData.user.rollNumber || 'College Member'}
-                  </span>
-                </div>
-
-                <ul className="list-group list-group-flush small">
-                  <li className="list-group-item d-flex justify-content-between px-0 py-2">
-                    <span className="text-muted">User ID:</span>
-                    <span className="fw-semibold">#{profileData.user.id}</span>
-                  </li>
-                  <li className="list-group-item d-flex justify-content-between px-0 py-2">
-                    <span className="text-muted">Email:</span>
-                    <span className="fw-semibold">{profileData.user.email}</span>
-                  </li>
-                  <li className="list-group-item d-flex justify-content-between px-0 py-2">
-                    <span className="text-muted">Roll / ID:</span>
-                    <span className="fw-semibold">{profileData.user.rollNumber || 'N/A'}</span>
-                  </li>
-                  <li className="list-group-item d-flex justify-content-between px-0 py-2">
-                    <span className="text-muted">Total Bookings:</span>
-                    <span className="badge bg-success rounded-pill px-2">
-                      {profileData.registrations?.length || 0}
-                    </span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-
-            {/* Confirmed Registrations Verification Table */}
-            <div className="col-lg-8">
-              <div className="card profile-card shadow-sm">
-                <div className="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
-                  <h5 className="mb-0 fw-bold text-dark">
-                    <i className="bi bi-ticket-detailed-fill text-success me-2"></i>
-                    Confirmed Event Registrations
-                  </h5>
-                  <span className="badge bg-success">
-                    {profileData.registrations?.length || 0} Registered
-                  </span>
-                </div>
-
-                <div className="card-body p-0">
-                  {profileData.registrations?.length === 0 ? (
-                    <div className="text-center py-5 text-muted">
-                      <i className="bi bi-ticket-perforated fs-1 text-secondary mb-2"></i>
-                      <p className="mb-2">No event bookings found.</p>
-                      <Link to="/dashboard" className="btn btn-primary btn-sm">
-                        Browse & Book Events
-                      </Link>
+        {!loading && user && (
+          <>
+            <BlurFade delay={0.15}>
+              <Card className="mt-10 gap-4 px-6" aria-labelledby="details-heading">
+                <h2 id="details-heading" className="font-display text-2xl font-extrabold text-mist">
+                  Your details
+                </h2>
+                <dl className="grid gap-4 sm:grid-cols-3">
+                  {[
+                    ['Name', user.name],
+                    ['Email', user.email],
+                    ['Roll number', user.rollNumber || 'Not provided'],
+                  ].map(([term, value]) => (
+                    <div key={term} className="min-w-0">
+                      <dt className="text-sm text-ash">{term}</dt>
+                      <dd className="font-semibold break-words text-mist">{value}</dd>
                     </div>
-                  ) : (
-                    <div className="table-responsive">
-                      <table className="table table-hover align-middle mb-0">
-                        <thead className="table-light small">
-                          <tr>
-                            <th className="ps-3">Reg ID</th>
-                            <th>Event Title</th>
-                            <th>Venue</th>
-                            <th>Event Timing</th>
-                            <th>Booked At</th>
-                            <th className="text-center pe-3">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody className="small">
-                          {profileData.registrations.map((reg) => (
-                            <tr key={reg.registrationId}>
-                              <td className="ps-3 fw-bold text-secondary">
-                                #{reg.registrationId}
-                              </td>
-                              <td className="fw-semibold text-dark">
-                                {reg.eventTitle}
-                              </td>
-                              <td className="text-muted">
-                                <i className="bi bi-geo-alt me-1 text-danger"></i>
-                                {reg.eventVenue}
-                              </td>
-                              <td className="text-muted">
-                                {formatDate(reg.eventStartTime)}
-                              </td>
-                              <td className="text-muted">
-                                {formatDate(reg.registeredAt)}
-                              </td>
-                              <td className="text-center pe-3">
-                                <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
-                                  <i className="bi bi-patch-check-fill me-1"></i>
-                                  Confirmed
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : null}
+                  ))}
+                </dl>
+              </Card>
+            </BlurFade>
+
+            <section aria-labelledby="bookings-heading" className="mt-14">
+              <h2 id="bookings-heading" className="font-display text-3xl font-extrabold text-mist">
+                <span className="text-sand">{registrations.length}</span>{' '}
+                {registrations.length === 1 ? 'booked event' : 'booked events'}
+              </h2>
+
+              {registrations.length === 0 ? (
+                <Card className="mt-5 items-start gap-4 px-6">
+                  <p className="text-mist">You have not booked any events yet.</p>
+                  <Button asChild variant="accent" size="lg">
+                    <Link to="/dashboard">Browse events</Link>
+                  </Button>
+                </Card>
+              ) : (
+                <AnimatedList delay={250} className="mt-5 items-stretch gap-4">
+                  {registrations.map((reg) => (
+                    <Card key={reg.registrationId} className="flex-row gap-4 px-5 py-4">
+                      <DateBlock iso={reg.eventStartTime} />
+                      <div className="min-w-0">
+                        <h3 className="font-display text-xl font-extrabold text-mist">{reg.eventTitle}</h3>
+                        <p className="text-sm font-semibold text-mist/90">{reg.eventVenue}</p>
+                        <p className="text-xs text-ash tabular-nums">{formatRange(reg.eventStartTime, reg.eventEndTime)}</p>
+                        <p className="mt-2 text-sm text-sand">Booked {formatMoment(reg.registeredAt)}</p>
+                      </div>
+                    </Card>
+                  ))}
+                </AnimatedList>
+              )}
+            </section>
+          </>
+        )}
       </main>
     </div>
   );
 }
-
-export default Profile;

@@ -1,84 +1,148 @@
-/* ─── EventSphere Global Styles ─────────────────────────────────────── */
+/* EventSphere theme. Every colour is a variable here; pages use Tailwind classes only. See DESIGN-PLAN.md. */
+@import "tailwindcss";
+@import "tw-animate-css";
 
-body {
-  background-color: #f8f9fa;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  color: #212529;
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Calm black and sand. Dominant colour: black. One accent: soft sand gold, on actions only, with black text on it.
+     Nothing bright: the live status uses a muted clay, not a red. */
+  --void: #000000;
+  --surface: #0f0f0f;
+  --raised: #1c1c1c;
+  --line: #262626;
+  --mist: #ededed;
+  --ash: #a3a3a3;
+  --sand: #d6b47a;
+  --sand-light: #fff7e6;
+  --clay: #d98b78;
+
+  --radius: 0.875rem;
+  --background: var(--void);
+  --foreground: var(--mist);
+  --card: var(--surface);
+  --card-foreground: var(--mist);
+  --popover: var(--raised);
+  --popover-foreground: var(--mist);
+  --primary: var(--mist);
+  --primary-foreground: var(--void);
+  --secondary: var(--raised);
+  --secondary-foreground: var(--mist);
+  --muted: var(--raised);
+  --muted-foreground: var(--ash);
+  --accent: var(--sand);
+  --accent-foreground: var(--void);
+  --destructive: var(--clay);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--sand);
 }
 
-/* ─── Navbar ─────────────────────────────────────────────────────────── */
-.navbar-brand {
-  font-weight: 700;
-  font-size: 1.35rem;
-  letter-spacing: 0.5px;
+@theme inline {
+  --font-display: "Fraunces", Georgia, serif;
+  --font-sans: "Bricolage Grotesque", sans-serif;
+  --font-mono: "JetBrains Mono", monospace; /* taste-skill-ignore: font named in CLAUDE.md, only for real code */
+
+  --color-void: var(--void);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-mist: var(--mist);
+  --color-ash: var(--ash);
+  --color-sand: var(--sand);
+  --color-clay: var(--clay);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --animate-marquee: marquee var(--duration) infinite linear;
+  --animate-marquee-vertical: marquee-vertical var(--duration) linear infinite;
+  --animate-shimmer-slide: shimmer-slide var(--speed) ease-in-out infinite alternate;
+  --animate-spin-around: spin-around calc(var(--speed) * 2) infinite linear;
+  --animate-shiny-text: shiny-text 8s infinite;
+  @keyframes marquee {
+  from {
+    transform: translateX(0);
+    }
+  to {
+    transform: translateX(calc(-100% - var(--gap)));
+    }
+  }
+  @keyframes marquee-vertical {
+  from {
+    transform: translateY(0);
+    }
+  to {
+    transform: translateY(calc(-100% - var(--gap)));
+    }
+  }
+  @keyframes shimmer-slide {
+  to {
+    transform: translate(calc(100cqw - 100%), 0);
+    }
+  }
+  @keyframes spin-around {
+  0% {
+    transform: translateZ(0) rotate(0);
+    }
+  15%, 35% {
+    transform: translateZ(0) rotate(90deg);
+    }
+  65%, 85% {
+    transform: translateZ(0) rotate(270deg);
+    }
+  100% {
+    transform: translateZ(0) rotate(360deg);
+    }
+  }
+  @keyframes shiny-text {
+  0%, 90%, 100% {
+    background-position: calc(-100% - var(--shiny-width)) 0;
+    }
+  30%, 60% {
+    background-position: calc(100% + var(--shiny-width)) 0;
+    }
+  }
 }
 
-/* ─── Event Card ─────────────────────────────────────────────────────── */
-.event-card {
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  background-color: #ffffff;
+/* Hero depth: two soft glows (sand top left, ash bottom right) over a transparent ground, so the page grid shows through. */
+@utility bg-hero {
+  background-image:
+    radial-gradient(ellipse 60% 50% at 15% 0%, rgb(214 180 122 / 0.10), transparent 70%),
+    radial-gradient(ellipse 50% 60% at 90% 100%, rgb(163 163 163 / 0.08), transparent 70%);
 }
 
-.event-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
-}
-
-/* ─── Live Badge Pulse Animation ─────────────────────────────────────── */
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.5); }
-  70% { box-shadow: 0 0 0 8px rgba(25, 135, 84, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(25, 135, 84, 0); }
-}
-
-.badge-live {
-  animation: pulse 1.8s infinite;
-}
-
-/* ─── Section Headers ────────────────────────────────────────────────── */
-.section-header {
-  border-left: 4px solid;
-  padding-left: 12px;
-  margin-bottom: 1.25rem;
-  font-weight: 600;
-}
-
-.section-header.live { border-color: #198754; }
-.section-header.upcoming { border-color: #0d6efd; }
-.section-header.previous { border-color: #6c757d; }
-
-/* ─── Auth Pages ─────────────────────────────────────────────────────── */
-.auth-wrapper {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  padding: 1.5rem;
-}
-
-.auth-card {
-  width: 100%;
-  max-width: 440px;
-  border-radius: 16px;
-  border: none;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.25);
-  background-color: #ffffff;
-}
-
-/* ─── Profile Card ───────────────────────────────────────────────────── */
-.profile-card {
-  border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
-  background-color: #ffffff;
-}
-
-/* ─── Seat Counter ───────────────────────────────────────────────────── */
-.seat-counter {
-  font-size: 0.875rem;
-  font-weight: 600;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    color-scheme: dark;
+  }
+  body {
+    @apply min-h-dvh bg-background font-sans text-foreground antialiased;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
 }
