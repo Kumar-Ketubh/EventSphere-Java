@@ -7,6 +7,3 @@ target/
 !.env.example
 .DS_Store
 *.log
-.kaizen/worktrees/
-.kaizen/
-.taste-skill/

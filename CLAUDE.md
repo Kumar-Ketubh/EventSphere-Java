@@ -1,5 +1,3 @@
-@AGENTS.md
-
 # Frontend aesthetics
 
 Avoid generic AI aesthetics. Make creative, distinctive choices.
