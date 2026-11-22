@@ -6,7 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { BlurFade } from '@/components/ui/blur-fade';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { getTicket } from '@/services/api.js';
+import { downloadCalendar, getTicket } from '@/services/api.js';
 import { formatRange } from '@/utils/dates.js';
 
 /** My ticket: the event, who it is for and the booking code, with a button to print or save as PDF. */
@@ -15,6 +15,7 @@ export default function Ticket() {
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [calendarError, setCalendarError] = useState('');
 
   useEffect(() => {
     getTicket(id)
@@ -29,6 +30,21 @@ export default function Ticket() {
       })
       .finally(() => setLoading(false));
   }, [id]);
+
+  const addToCalendar = async () => {
+    setCalendarError('');
+    try {
+      const res = await downloadCalendar(id);
+      const url = URL.createObjectURL(res.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${ticket.bookingCode}.ics`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setCalendarError('We could not download the calendar file. Please try again.');
+    }
+  };
 
   return (
     <div className="min-h-dvh">
@@ -82,10 +98,18 @@ export default function Ticket() {
               <Button variant="accent" size="lg" onClick={() => window.print()}>
                 Download ticket
               </Button>
+              <Button variant="outline" size="lg" onClick={addToCalendar}>
+                Add to calendar
+              </Button>
               <Button asChild variant="ghost" size="lg" className="text-mist hover:bg-raised">
                 <Link to="/profile">Back to My bookings</Link>
               </Button>
             </div>
+            {calendarError && (
+              <Alert role="alert" data-print="hide" className="mt-4 border-clay/50 bg-clay/10">
+                <AlertDescription className="text-mist">{calendarError}</AlertDescription>
+              </Alert>
+            )}
           </BlurFade>
         )}
       </main>
