@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import Navbar from '@/components/Navbar.jsx';
 import DateBlock from '@/components/DateBlock.jsx';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { BlurFade } from '@/components/ui/blur-fade';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { downloadCalendar, getTicket } from '@/services/api.js';
+import { cancelBooking, downloadCalendar, getTicket } from '@/services/api.js';
 import { formatRange } from '@/utils/dates.js';
 
 /** My ticket: the event, who it is for and the booking code, with a button to print or save as PDF. */
@@ -16,6 +16,18 @@ export default function Ticket() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [calendarError, setCalendarError] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState('');
+  const navigate = useNavigate();
+  const panelRef = useRef(null);
+
+  useEffect(() => {
+    if (!confirming || !panelRef.current) return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    panelRef.current.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+    panelRef.current.focus({ preventScroll: true });
+  }, [confirming]);
 
   useEffect(() => {
     getTicket(id)
@@ -44,6 +56,19 @@ export default function Ticket() {
     } catch {
       setCalendarError('We could not download the calendar file. Please try again.');
     }
+  };
+
+  const started = ticket ? new Date(ticket.eventStartTime) <= new Date() : false;
+
+  const confirmCancel = () => {
+    setCancelling(true);
+    setCancelError('');
+    cancelBooking(id)
+      .then(() => navigate('/profile'))
+      .catch((err) => {
+        setCancelError(err.response?.data?.message || 'We could not cancel your booking. Please try again.');
+        setCancelling(false);
+      });
   };
 
   return (
@@ -104,11 +129,39 @@ export default function Ticket() {
               <Button asChild variant="ghost" size="lg" className="text-mist hover:bg-raised">
                 <Link to="/profile">Back to My bookings</Link>
               </Button>
+              {!started && !confirming && (
+                <Button variant="ghost" size="lg" className="text-clay hover:bg-raised" onClick={() => setConfirming(true)}>
+                  Cancel booking
+                </Button>
+              )}
             </div>
             {calendarError && (
               <Alert role="alert" data-print="hide" className="mt-4 border-clay/50 bg-clay/10">
                 <AlertDescription className="text-mist">{calendarError}</AlertDescription>
               </Alert>
+            )}
+            {confirming && (
+              <div ref={panelRef} tabIndex={-1} data-print="hide" className="mt-6 outline-none">
+              <Alert role="alertdialog" className="border-clay/50 bg-clay/10">
+                <AlertDescription className="text-mist">
+                  <p className="font-semibold">Cancel your seat at {ticket.eventTitle}?</p>
+                  <p className="mt-1 text-ash">Your booking will be removed and the seat freed for someone else.</p>
+                  {cancelError && (
+                    <p role="alert" className="mt-2 text-clay">
+                      {cancelError}
+                    </p>
+                  )}
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <Button variant="destructive" onClick={confirmCancel} disabled={cancelling}>
+                      {cancelling ? 'Cancelling...' : 'Yes, cancel booking'}
+                    </Button>
+                    <Button variant="ghost" className="text-mist hover:bg-raised" onClick={() => setConfirming(false)} disabled={cancelling}>
+                      Keep my seat
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
+              </div>
             )}
           </BlurFade>
         )}

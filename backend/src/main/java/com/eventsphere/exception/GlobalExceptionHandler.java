@@ -52,6 +52,15 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles cancelling after the event started → HTTP 409.
+     */
+    @ExceptionHandler(EventAlreadyStartedException.class)
+    public ResponseEntity<MessageResponse> handleEventAlreadyStarted(EventAlreadyStartedException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new MessageResponse(ex.getMessage()));
+    }
+
+    /**
      * Handles duplicate registration attempts → HTTP 409 Conflict.
      */
     @ExceptionHandler(AlreadyRegisteredException.class)

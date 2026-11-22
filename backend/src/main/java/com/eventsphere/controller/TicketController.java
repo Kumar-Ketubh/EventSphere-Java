@@ -41,4 +41,10 @@ public class TicketController {
                         ContentDisposition.attachment().filename(ticket.bookingCode() + ".ics").build().toString())
                 .body(body);
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> cancel(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
+        registrationService.cancelRegistration(Long.valueOf(jwt.getSubject()), id);
+        return ResponseEntity.noContent().build();
+    }
 }

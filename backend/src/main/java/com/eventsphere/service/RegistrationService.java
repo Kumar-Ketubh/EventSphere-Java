@@ -35,4 +35,13 @@ public interface RegistrationService {
      * @throws com.eventsphere.exception.RegistrationForbiddenException if it is someone else's
      */
     TicketResponse getTicket(Long userId, Long registrationId);
+
+    /**
+     * Cancels a booking and frees its seat, in one transaction under the event's pessimistic lock.
+     *
+     * @throws com.eventsphere.exception.RegistrationNotFoundException  if no such booking
+     * @throws com.eventsphere.exception.RegistrationForbiddenException if it is someone else's
+     * @throws com.eventsphere.exception.EventAlreadyStartedException   if the event has started
+     */
+    void cancelRegistration(Long userId, Long registrationId);
 }

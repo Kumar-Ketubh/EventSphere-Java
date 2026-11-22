@@ -102,4 +102,7 @@ export const getTicket = (id) => api.get(`/registrations/${id}`);
 export const downloadCalendar = (id) =>
   api.get(`/registrations/${id}/calendar.ics`, { responseType: 'blob' });
 
+/** Cancels one of the logged-in user's bookings and frees the seat. */
+export const cancelBooking = (id) => api.delete(`/registrations/${id}`);
+
 export default api;
