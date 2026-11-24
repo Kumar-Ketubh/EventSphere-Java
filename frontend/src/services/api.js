@@ -93,4 +93,16 @@ export const registerForEvent = (eventId) =>
  */
 export const getProfile = () => api.get('/me/profile');
 
+// ─── Ticket API ───────────────────────────────────────────────────────────
+
+/** Fetches one of the logged-in user's tickets (event, student, booking code). */
+export const getTicket = (id) => api.get(`/registrations/${id}`);
+
+/** Downloads the calendar file (.ics) for one of the logged-in user's bookings as a blob. */
+export const downloadCalendar = (id) =>
+  api.get(`/registrations/${id}/calendar.ics`, { responseType: 'blob' });
+
+/** Cancels one of the logged-in user's bookings and frees the seat. */
+export const cancelBooking = (id) => api.delete(`/registrations/${id}`);
+
 export default api;

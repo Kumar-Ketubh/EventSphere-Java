@@ -1,6 +1,10 @@
 package com.eventsphere.service.impl;
 
 import com.eventsphere.dto.RegistrationResponse;
+import com.eventsphere.dto.TicketResponse;
+import com.eventsphere.exception.EventAlreadyStartedException;
+import com.eventsphere.exception.RegistrationForbiddenException;
+import com.eventsphere.exception.RegistrationNotFoundException;
 import com.eventsphere.entity.Event;
 import com.eventsphere.entity.Registration;
 import com.eventsphere.entity.User;
@@ -80,5 +84,48 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .eventEndTime(event.getEndTime())
                 .registeredAt(saved.getRegisteredAt())
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TicketResponse getTicket(Long userId, Long registrationId) {
+        Registration reg = registrationRepository.findWithDetailsById(registrationId)
+                .orElseThrow(() -> new RegistrationNotFoundException("Booking not found with ID: " + registrationId));
+        if (!reg.getUser().getId().equals(userId)) {
+            throw new RegistrationForbiddenException("This booking is not yours.");
+        }
+        Event event = reg.getEvent();
+        return new TicketResponse(
+                reg.getId(),
+                String.format("ES-%04d", reg.getId()),
+                event.getId(),
+                event.getTitle(),
+                event.getVenue(),
+                event.getStartTime(),
+                event.getEndTime(),
+                reg.getUser().getName(),
+                reg.getUser().getRollNumber());
+    }
+
+    @Override
+    @Transactional
+    public void cancelRegistration(Long userId, Long registrationId) {
+        Registration reg = registrationRepository.findWithDetailsById(registrationId)
+                .orElseThrow(() -> new RegistrationNotFoundException("Booking not found with ID: " + registrationId));
+        if (!reg.getUser().getId().equals(userId)) {
+            throw new RegistrationForbiddenException("This booking is not yours.");
+        }
+        Event event = eventRepository.findByIdWithLock(reg.getEvent().getId())
+                .orElseThrow(() -> new EventNotFoundException("Event not found with ID: " + reg.getEvent().getId()));
+        // Re-check under the lock: a simultaneous cancel may already have removed this booking.
+        registrationRepository.findWithDetailsById(registrationId)
+                .orElseThrow(() -> new RegistrationNotFoundException("Booking not found with ID: " + registrationId));
+        if (!LocalDateTime.now().isBefore(event.getStartTime())) {
+            throw new EventAlreadyStartedException(
+                    "This event has already started, so the booking can no longer be cancelled.");
+        }
+        event.setBookedSeats(Math.max(0, event.getBookedSeats() - 1));
+        eventRepository.save(event);
+        registrationRepository.delete(reg);
     }
 }

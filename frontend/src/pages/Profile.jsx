@@ -95,6 +95,9 @@ export default function Profile() {
                         <p className="text-sm font-semibold text-mist/90">{reg.eventVenue}</p>
                         <p className="text-xs text-ash tabular-nums">{formatRange(reg.eventStartTime, reg.eventEndTime)}</p>
                         <p className="mt-2 text-sm text-sand">Booked {formatMoment(reg.registeredAt)}</p>
+                        <Button asChild variant="accent" size="sm" className="mt-3">
+                          <Link to={`/tickets/${reg.registrationId}`}>View ticket</Link>
+                        </Button>
                       </div>
                     </Card>
                   ))}
