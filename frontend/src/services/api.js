@@ -11,6 +11,41 @@ const api = axios.create({
   },
 });
 
+// Attach the login token to every request so the server knows who is calling.
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// If the token is missing or expired, the server answers 401: clear it and go to login.
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const isAuthCall = error.config?.url?.startsWith('/auth/');
+    if (error.response?.status === 401 && !isAuthCall) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  },
+);
+
+/** Saves the { token, user } returned by login or sign-up. */
+export const saveSession = ({ token, user }) => {
+  localStorage.setItem('token', token);
+  localStorage.setItem('user', JSON.stringify(user));
+};
+
+/** Clears the saved login. */
+export const clearSession = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+};
+
 // ─── Authentication API ───────────────────────────────────────────────────
 
 /**
@@ -37,25 +72,25 @@ export const loginUser = (email, password) =>
  */
 export const getDashboard = () => api.get('/events/dashboard');
 
+/** What is on now and coming up, without logging in. Used by the landing page. */
+export const getPublicEvents = () => api.get('/events/public');
+
 // ─── Seat Registration API ────────────────────────────────────────────────
 
 /**
- * Registers a user for an event (safe seat booking with pessimistic locking).
+ * Books a seat at an event for the logged-in user (safe seat booking with pessimistic locking).
  * @param {number|string} eventId - Target event ID
- * @param {number|string} userId  - Current user ID
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export const registerForEvent = (eventId, userId) =>
-  api.post(`/events/${eventId}/register`, { userId });
+export const registerForEvent = (eventId) =>
+  api.post(`/events/${eventId}/registrations`);
 
 // ─── Profile API ──────────────────────────────────────────────────────────
 
 /**
- * Fetches the user's profile and confirmed registration records.
- * @param {number|string} userId - Current user ID
+ * Fetches the logged-in user's profile and confirmed registration records.
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export const getProfile = (userId) =>
-  api.get('/profile', { params: { userId } });
+export const getProfile = () => api.get('/me/profile');
 
 export default api;

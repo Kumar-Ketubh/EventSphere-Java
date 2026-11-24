@@ -1,81 +1,56 @@
-import React from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { clearSession } from '@/services/api.js';
 
-/**
- * Navigation Bar Component.
- *
- * Provides links to Dashboard and Profile, shows the logged-in user's name,
- * and allows logging out to clear the session.
- *
- * @returns {JSX.Element}
- */
-function Navbar() {
+const LINKS = [
+  { to: '/dashboard', label: 'Events' },
+  { to: '/profile', label: 'My bookings' },
+];
+
+/** Calm bar: brand, page links (sand underline on the current one), first name and log out. */
+export default function Navbar() {
   const navigate = useNavigate();
-  const location = useLocation();
+  const { pathname } = useLocation();
 
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  let user = {};
+  try {
+    user = JSON.parse(localStorage.getItem('user') || '{}') || {};
+  } catch {
+    user = {};
+  }
+  const firstName = (user.name || '').trim().split(/\s+/)[0];
 
   const handleLogout = () => {
-    localStorage.removeItem('user');
+    clearSession();
     navigate('/');
   };
 
   return (
-    <nav className="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm py-2">
-      <div className="container">
-        <Link className="navbar-brand d-flex align-items-center gap-2" to="/dashboard">
-          <i className="bi bi-calendar-event text-primary"></i>
-          <span>EventSphere</span>
+    <nav aria-label="Main" className="sticky top-0 z-40 border-b border-line bg-void/90">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 px-5 sm:px-8">
+        <Link to="/" className="py-3 font-display text-xl font-extrabold text-mist">
+          EventSphere
         </Link>
-
-        <button
-          className="navbar-toggler"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#navbarNav"
-          aria-controls="navbarNav"
-          aria-expanded="false"
-          aria-label="Toggle navigation"
-        >
-          <span className="navbar-toggler-icon"></span>
-        </button>
-
-        <div className="collapse navbar-collapse" id="navbarNav">
-          <ul className="navbar-nav me-auto mb-2 mb-lg-0">
-            <li className="nav-item">
+        <ul className="order-last flex w-full gap-2 sm:order-none sm:w-auto">
+          {LINKS.map(({ to, label }) => (
+            <li key={to}>
               <Link
-                className={`nav-link ${location.pathname === '/dashboard' ? 'active text-primary fw-semibold' : ''}`}
-                to="/dashboard"
+                to={to}
+                aria-current={pathname === to ? 'page' : undefined}
+                className="inline-flex h-12 items-center border-b-2 border-transparent px-2 text-ash transition-colors hover:text-mist aria-[current=page]:border-sand aria-[current=page]:font-semibold aria-[current=page]:text-mist"
               >
-                <i className="bi bi-grid-fill me-1"></i> Dashboard
+                {label}
               </Link>
             </li>
-            <li className="nav-item">
-              <Link
-                className={`nav-link ${location.pathname === '/profile' ? 'active text-primary fw-semibold' : ''}`}
-                to="/profile"
-              >
-                <i className="bi bi-person-circle me-1"></i> My Profile
-              </Link>
-            </li>
-          </ul>
-
-          <div className="d-flex align-items-center gap-3">
-            <div className="text-white-50 small">
-              <i className="bi bi-person-fill text-light me-1"></i>
-              <span className="text-light fw-medium">{user.name || 'User'}</span>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="btn btn-outline-danger btn-sm px-3"
-            >
-              <i className="bi bi-box-arrow-right me-1"></i> Logout
-            </button>
-          </div>
+          ))}
+        </ul>
+        <div className="ml-auto flex items-center gap-3 py-2">
+          {firstName && <span className="text-sm text-ash">{firstName}</span>}
+          <Button variant="outline" size="sm" onClick={handleLogout} className="border-line bg-transparent text-mist hover:bg-raised">
+            Log out
+          </Button>
         </div>
       </div>
     </nav>
   );
 }
-
-export default Navbar;

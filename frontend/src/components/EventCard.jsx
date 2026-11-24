@@ -1,132 +1,88 @@
-import React from 'react';
+import { Link } from 'react-router-dom';
+import { motion } from 'motion/react';
+import { AnimatedShinyText } from '@/components/ui/animated-shiny-text';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { MagicCard } from '@/components/ui/magic-card';
+import { NumberTicker } from '@/components/ui/number-ticker';
+import DateBlock from '@/components/DateBlock.jsx';
+import { cn } from '@/lib/utils';
+import { cssVar } from '@/lib/theme';
+import { formatRange } from '@/utils/dates.js';
 
 /**
- * Event Card Component.
- *
- * Renders an event card configured for Live, Upcoming, or Previous timelines.
- * Handles the "Register Seat" trigger for upcoming events.
- *
- * @param {Object} props
- * @param {Object} props.event - The event data object
- * @param {'live'|'upcoming'|'previous'} props.type - The status category
- * @param {Function} [props.onRegister] - Callback function to book a seat
- * @param {boolean} [props.isBooking] - True if this specific card is currently booking
- * @returns {JSX.Element}
+ * A ticket: date block and details, then a dashed stub with seats left and the booking action.
+ * The card's spotlight follows the pointer. type is 'live', 'upcoming' or 'previous'.
  */
-function EventCard({ event, type, onRegister, isBooking }) {
-  const availableSeats = event.totalSeats - event.bookedSeats;
-  const isSoldOut = availableSeats <= 0;
-
-  const formatDate = (isoString) => {
-    if (!isoString) return '';
-    const date = new Date(isoString);
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+export default function EventCard({ event, type, onRegister, isBooking, isBooked }) {
+  const seatsLeft = Math.max(0, event.totalSeats - event.bookedSeats);
+  const isFull = seatsLeft <= 0;
+  const ended = type === 'previous';
 
   return (
-    <div className="card event-card h-100 d-flex flex-column">
-      <div className="card-body d-flex flex-column">
-        {/* Header with Title and Badge */}
-        <div className="d-flex justify-content-between align-items-start mb-2">
-          <h5 className="card-title fw-bold text-dark mb-0 me-2">{event.title}</h5>
-          {type === 'live' && (
-            <span className="badge bg-success badge-live text-uppercase px-2 py-1">
-              <i className="bi bi-record-circle-fill me-1"></i> Live
-            </span>
-          )}
-          {type === 'upcoming' && (
-            <span className="badge bg-primary text-uppercase px-2 py-1">
-              Upcoming
-            </span>
-          )}
-          {type === 'previous' && (
-            <span className="badge bg-secondary text-uppercase px-2 py-1">
-              Ended
-            </span>
-          )}
+    <MagicCard
+      gradientColor={cssVar('raised')}
+      gradientFrom={cssVar('sand')}
+      gradientTo={cssVar('ash')}
+      gradientOpacity={0.6}
+      className={cn('h-full rounded-2xl', ended && 'opacity-75')}
+    >
+      <div className="flex h-full flex-col">
+        <div className="flex flex-1 gap-4 p-5">
+          <DateBlock iso={event.startTime} muted={ended} />
+          <div className="min-w-0">
+            {type === 'live' && (
+              <Badge className="mb-2 border-clay/40 bg-clay/15 text-clay">
+                <span className="size-1.5 rounded-full bg-clay motion-safe:animate-pulse" aria-hidden="true" />
+                <AnimatedShinyText className="mx-0 text-clay">On now</AnimatedShinyText>
+              </Badge>
+            )}
+            {ended && (
+              <Badge variant="outline" className="mb-2 border-line text-ash">
+                Ended
+              </Badge>
+            )}
+            <h3 className="font-display text-xl leading-snug font-extrabold text-mist">{event.title}</h3>
+            <p className="mt-1 text-sm font-semibold text-mist/90">{event.venue}</p>
+            <p className="text-xs text-ash tabular-nums">{formatRange(event.startTime, event.endTime)}</p>
+            {event.description && <p className="mt-3 text-sm text-ash">{event.description}</p>}
+          </div>
         </div>
 
-        {/* Description */}
-        <p className="card-text text-muted small flex-grow-1 mb-3">
-          {event.description}
-        </p>
-
-        {/* Metadata Details */}
-        <div className="border-top pt-2 mt-auto small">
-          <div className="text-secondary mb-1">
-            <i className="bi bi-geo-alt-fill text-danger me-1"></i>
-            <span>{event.venue}</span>
-          </div>
-          <div className="text-secondary mb-1">
-            <i className="bi bi-clock-fill text-primary me-1"></i>
-            <span>Starts: {formatDate(event.startTime)}</span>
-          </div>
-          <div className="text-secondary mb-2">
-            <i className="bi bi-hourglass-bottom text-warning me-1"></i>
-            <span>Ends: {formatDate(event.endTime)}</span>
-          </div>
-
-          {/* Seat Capacity Status */}
-          <div className="d-flex justify-content-between align-items-center mb-2">
-            <span className="text-muted">Seats Available:</span>
-            {type === 'previous' ? (
-              <span className="badge bg-light text-secondary border">
-                {event.bookedSeats} / {event.totalSeats} attended
-              </span>
-            ) : isSoldOut ? (
-              <span className="badge bg-danger">Housefull (0 left)</span>
-            ) : (
-              <span className="badge bg-info-subtle text-info-emphasis border border-info-subtle fw-semibold">
-                {availableSeats} / {event.totalSeats} seats
-              </span>
-            )}
-          </div>
-
-          {/* Action Button */}
-          {type === 'upcoming' && (
-            <button
-              onClick={() => onRegister(event.id)}
-              disabled={isSoldOut || isBooking}
-              className={`btn w-100 fw-semibold mt-1 ${
-                isSoldOut ? 'btn-secondary disabled' : 'btn-primary'
-              }`}
-            >
-              {isBooking ? (
-                <>
-                  <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                  Reserving Seat...
-                </>
-              ) : isSoldOut ? (
-                'Sold Out'
+        {type === 'upcoming' && (
+          <div className="flex items-center justify-between gap-3 border-t border-dashed border-line px-5 py-3">
+            <p className={cn('text-sm tabular-nums', isFull ? 'text-clay' : 'text-mist')}>
+              {isFull ? (
+                'Full'
               ) : (
                 <>
-                  <i className="bi bi-ticket-perforated-fill me-1"></i> Register Seat
+                  <NumberTicker value={seatsLeft} className="font-semibold text-mist" /> of {event.totalSeats} seats left
                 </>
               )}
-            </button>
-          )}
+            </p>
+            {isBooked ? (
+              <motion.span initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 380, damping: 20 }}>
+                <Link
+                  to="/profile"
+                  className="inline-flex h-10 shrink-0 items-center rounded-lg border border-sand/50 px-3 text-sm font-semibold whitespace-nowrap text-sand hover:bg-sand/10"
+                >
+                  You have a seat
+                </Link>
+              </motion.span>
+            ) : (
+              <Button variant="accent" size="lg" onClick={() => onRegister(event.id)} disabled={isFull || isBooking} className="active:scale-95">
+                {isBooking ? 'Booking...' : 'Book seat'}
+              </Button>
+            )}
+          </div>
+        )}
 
-          {type === 'live' && (
-            <button className="btn btn-outline-success w-100 fw-semibold mt-1 disabled">
-              <i className="bi bi-broadcast me-1"></i> In Progress
-            </button>
-          )}
-
-          {type === 'previous' && (
-            <button className="btn btn-outline-secondary w-100 fw-semibold mt-1 disabled">
-              <i className="bi bi-check2-all me-1"></i> Event Concluded
-            </button>
-          )}
-        </div>
+        {ended && (
+          <div className="border-t border-dashed border-line px-5 py-3">
+            <p className="text-sm text-ash">{event.bookedSeats} attended</p>
+          </div>
+        )}
       </div>
-    </div>
+    </MagicCard>
   );
 }
-
-export default EventCard;

@@ -18,6 +18,12 @@ public class EventController {
         this.eventService = eventService;
     }
 
+    /** Same lists as the dashboard, open to everyone so the landing page can show what is on. Event data only, no user data. */
+    @GetMapping("/public")
+    public ResponseEntity<DashboardResponse> getPublicEvents() {
+        return ResponseEntity.ok(eventService.getDashboardData());
+    }
+
     @GetMapping("/dashboard")
     public ResponseEntity<DashboardResponse> getDashboard() {
         return ResponseEntity.ok(eventService.getDashboardData());

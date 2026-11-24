@@ -1,15 +1,13 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { loginUser } from '../services/api.js';
+import AuthLayout from '@/components/AuthLayout.jsx';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { loginUser, saveSession } from '@/services/api.js';
 
-/**
- * Login Page Component.
- *
- * Authenticates user credentials and stores the user profile in localStorage.
- *
- * @returns {JSX.Element}
- */
-function Login() {
+/** Login page: email and password, then on to the dashboard. */
+export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('student@college.edu');
   const [password, setPassword] = useState('password123');
@@ -20,106 +18,66 @@ function Login() {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
       const response = await loginUser(email, password);
-      // Persist user session to localStorage
-      localStorage.setItem('user', JSON.stringify(response.data));
+      saveSession(response.data);
       navigate('/dashboard');
     } catch (err) {
-      setError(
-        err.response?.data?.message || 'Login failed. Please verify credentials.'
-      );
+      setError(err.response?.data?.message || 'We could not log you in. Check your email and password, then try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="auth-wrapper">
-      <div className="card auth-card p-4 p-sm-5">
-        <div className="text-center mb-4">
-          <div className="d-inline-flex align-items-center justify-content-center bg-primary text-white rounded-circle mb-3" style={{ width: '60px', height: '60px' }}>
-            <i className="bi bi-calendar2-check-fill fs-3"></i>
-          </div>
-          <h3 className="fw-bold text-dark mb-1">EventSphere</h3>
-          <p className="text-muted small">Campus Event Booking Portal</p>
+    <AuthLayout
+      title="Log in"
+      intro="Use your college email to see what is on."
+      error={error}
+      footer={
+        <>
+          <p className="rounded-lg border border-line bg-surface px-4 py-3 text-mist">
+            Demo account: <code className="tabular-nums whitespace-nowrap">student@college.edu</code> /{' '}
+            <code className="tabular-nums whitespace-nowrap">password123</code>
+          </p>
+          <p>
+            New here?{' '}
+            <Link to="/register" className="font-semibold text-sand underline underline-offset-4">
+              Create account
+            </Link>
+          </p>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="space-y-2">
+          <Label htmlFor="login-email">Email</Label>
+          <Input
+            id="login-email"
+            type="email"
+            className="h-11 bg-surface text-mist"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+            required
+          />
         </div>
-
-        {error && (
-          <div className="alert alert-danger py-2 small d-flex align-items-center mb-3">
-            <i className="bi bi-exclamation-octagon-fill me-2 fs-5"></i>
-            <div>{error}</div>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <div className="mb-3">
-            <label className="form-label small fw-semibold text-secondary">Email Address</label>
-            <div className="input-group">
-              <span className="input-group-text bg-light text-muted">
-                <i className="bi bi-envelope-fill"></i>
-              </span>
-              <input
-                type="email"
-                className="form-control"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="student@college.edu"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="mb-4">
-            <label className="form-label small fw-semibold text-secondary">Password</label>
-            <div className="input-group">
-              <span className="input-group-text bg-light text-muted">
-                <i className="bi bi-key-fill"></i>
-              </span>
-              <input
-                type="password"
-                className="form-control"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn btn-primary w-100 py-2 fw-semibold mb-3 shadow-sm"
-          >
-            {loading ? (
-              <>
-                <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                Signing in...
-              </>
-            ) : (
-              'Sign In'
-            )}
-          </button>
-        </form>
-
-        <div className="card bg-light border-0 p-3 mb-3 text-center">
-          <span className="text-muted small">
-            <strong>Demo Account:</strong> <br />
-            <code>student@college.edu</code> / <code>password123</code>
-          </span>
+        <div className="space-y-2">
+          <Label htmlFor="login-password">Password</Label>
+          <Input
+            id="login-password"
+            type="password"
+            className="h-11 bg-surface text-mist"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+          />
         </div>
-
-        <div className="text-center small text-secondary">
-          Don't have an account?{' '}
-          <Link to="/register" className="text-primary text-decoration-none fw-semibold">
-            Create an Account
-          </Link>
-        </div>
-      </div>
-    </div>
+        <Button type="submit" variant="accent" size="xl" className="w-full" disabled={loading}>
+          {loading ? 'Logging in...' : 'Log in'}
+        </Button>
+      </form>
+    </AuthLayout>
   );
 }
-
-export default Login;

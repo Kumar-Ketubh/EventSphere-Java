@@ -1,61 +1,32 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login.jsx';
-import Register from './pages/Register.jsx';
-import Dashboard from './pages/Dashboard.jsx';
-import Profile from './pages/Profile.jsx';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { MotionConfig } from 'motion/react';
+import Landing from '@/pages/Landing.jsx';
+import Login from '@/pages/Login.jsx';
+import Register from '@/pages/Register.jsx';
+import Dashboard from '@/pages/Dashboard.jsx';
+import Profile from '@/pages/Profile.jsx';
+import PageGrid from '@/components/PageGrid.jsx';
 
-/**
- * Protected Route Wrapper.
- *
- * Checks if the user is authenticated (present in localStorage).
- * Redirects to the login route if not authenticated.
- *
- * @param {Object} props
- * @param {React.ReactNode} props.children
- * @returns {JSX.Element}
- */
+/** Sends anyone without a login token to the login page. */
 function ProtectedRoute({ children }) {
-  const user = localStorage.getItem('user');
-  if (!user) {
-    return <Navigate to="/" replace />;
-  }
-  return children;
+  return localStorage.getItem('token') ? children : <Navigate to="/login" replace />;
 }
 
-/**
- * Root App Component.
- * Configures the React Router routing hierarchy.
- *
- * @returns {JSX.Element}
- */
-function App() {
+/** Routes: landing and auth pages are public; dashboard and bookings need a login. */
+export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          }
-        />
-        {/* Fallback to Login */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+    <MotionConfig reducedMotion="user">
+      <PageGrid />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </MotionConfig>
   );
 }
-
-export default App;
