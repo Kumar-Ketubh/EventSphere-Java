@@ -1,0 +1,40 @@
+package com.eventsphere.config;
+
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.Resource;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.resource.PathResourceResolver;
+
+import java.io.IOException;
+
+/**
+ * Directs browser requests for client-side React routes (e.g. /dashboard, /login)
+ * to /index.html so React Router can handle client-side page rendering.
+ */
+@Configuration
+public class SpaRoutingConfig implements WebMvcConfigurer {
+
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/**")
+                .addResourceLocations("classpath:/static/")
+                .resourceChain(true)
+                .addResolver(new PathResourceResolver() {
+                    @Override
+                    protected Resource getResource(String resourcePath, Resource location) throws IOException {
+                        Resource requestedResource = location.createRelative(resourcePath);
+                        if (requestedResource.exists() && requestedResource.isReadable()) {
+                            return requestedResource;
+                        }
+                        // Do not route API or H2 console calls to index.html
+                        if (resourcePath.startsWith("api") || resourcePath.startsWith("h2-console")) {
+                            return null;
+                        }
+                        // Fallback to index.html for SPA routes
+                        Resource indexHtml = location.createRelative("index.html");
+                        return (indexHtml.exists() && indexHtml.isReadable()) ? indexHtml : null;
+                    }
+                });
+    }
+}

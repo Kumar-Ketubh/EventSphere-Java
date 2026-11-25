@@ -1,35 +1,15 @@
 package com.eventsphere.entity;
 
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 /**
- * JPA Entity representing a confirmed seat registration.
+ * Domain model representing a confirmed seat registration.
  */
-@Entity
-@Table(
-    name = "registrations",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "event_id"})
-)
 public class Registration {
 
-    /** Auto-generated primary key. */
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    /** The user who registered — many registrations can belong to one user. */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
     private User user;
-
-    /** The event the user registered for — many registrations per event. */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "event_id", nullable = false)
     private Event event;
-
-    /** Timestamp of when the registration was created. */
-    @Column(nullable = false)
     private LocalDateTime registeredAt;
 
     public Registration() {

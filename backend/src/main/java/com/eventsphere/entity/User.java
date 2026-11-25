@@ -1,39 +1,17 @@
 package com.eventsphere.entity;
 
-import jakarta.persistence.*;
-
 /**
- * JPA Entity representing an EventSphere user (Student / Faculty).
+ * Domain model representing an EventSphere user (Student / Faculty).
  *
- * <p>Stored in the {@code users} table in H2 (or PostgreSQL in production).
- * Password is stored as plain-text for MVP demo — see ADR-004 in DECISIONS.md.</p>
+ * <p>Stored in the {@code users} table and managed via JDBC.
+ * Password is stored as plain-text for MVP demo - see ADR-004 in DECISIONS.md.</p>
  */
-@Entity
-@Table(name = "users")
 public class User {
 
-    /** Auto-generated primary key. */
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    /** Full name of the user. */
-    @Column(nullable = false)
     private String name;
-
-    /** Unique email address used as login credential. */
-    @Column(nullable = false, unique = true)
     private String email;
-
-    /**
-     * Plain-text password for MVP.
-     * TODO: Replace with BCryptPasswordEncoder in production (see ADR-004).
-     */
-    @Column(nullable = false)
     private String password;
-
-    /** College roll number or faculty ID for identification. */
-    @Column
     private String rollNumber;
 
     public User() {

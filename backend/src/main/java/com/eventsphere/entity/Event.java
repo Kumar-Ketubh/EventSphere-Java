@@ -1,52 +1,22 @@
 package com.eventsphere.entity;
 
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 /**
- * JPA Entity representing a college event in EventSphere.
+ * Domain model representing a college event in EventSphere.
  *
  * <p>Dynamic categorization is computed at query time using {@code LocalDateTime.now()}
- * as the reference point — see {@link com.eventsphere.repository.EventRepository}.</p>
+ * as the reference point via JDBC SQL queries.</p>
  */
-@Entity
-@Table(name = "events")
 public class Event {
 
-    /** Auto-generated primary key. */
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    /** Short title displayed on the event card. */
-    @Column(nullable = false)
     private String title;
-
-    /** Full description of the event. */
-    @Column(length = 1000)
     private String description;
-
-    /** Physical or virtual venue name. */
-    @Column(nullable = false)
     private String venue;
-
-    /** Event start date-time. Used for categorization: live / upcoming. */
-    @Column(nullable = false)
     private LocalDateTime startTime;
-
-    /** Event end date-time. Used for categorization: live / previous. */
-    @Column(nullable = false)
     private LocalDateTime endTime;
-
-    /** Maximum number of seats available for this event. */
-    @Column(nullable = false)
     private int totalSeats;
-
-    /**
-     * Number of seats already booked.
-     * Incremented atomically under pessimistic write lock during registration.
-     */
-    @Column(nullable = false)
     private int bookedSeats;
 
     public Event() {

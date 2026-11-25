@@ -19,7 +19,7 @@ The frontend is a React single-page app built with Vite on port 5173. It calls t
 | Working in parallel | Frontend and backend share files | Each side works on its own |
 | Reuse | The HTML only serves a browser | A mobile app could call the same API |
 | UI | Server templates | React components |
-| Setup | One process | Two processes |
+| Setup | One process | Two processes (dev) / bundled jar (prod) |
 
 ### Cost
 - The browser blocks calls between ports 5173 and 8080 unless the backend allows them. `WebConfig.java` allows them.
@@ -38,20 +38,20 @@ Booking a seat takes three steps:
 If two students book the last seat at the same moment, both requests can pass step 2. The event is then overbooked.
 
 ### Decision
-`EventRepository.findByIdWithLock` locks the event row:
+`JdbcEventRepository.findByIdWithLock` locks the event row using native SQL:
 
 ```java
-@Lock(LockModeType.PESSIMISTIC_WRITE)
-@Query("SELECT e FROM Event e WHERE e.id = :id")
-Optional<Event> findByIdWithLock(@Param("id") Long id);
+String sql = "SELECT id, title, description, venue, start_time, end_time, total_seats, booked_seats " +
+             "FROM events WHERE id = ? FOR UPDATE";
+List<Event> events = jdbcTemplate.query(sql, eventRowMapper, id);
 ```
 
-The database runs this as `SELECT ... FOR UPDATE`. A second booking for the same event waits until the first one commits. It then reads the updated seat count.
+The database executes this as `SELECT ... FOR UPDATE`. Within the `@Transactional` boundary of `registerUserForEvent`, a second booking for the same event waits until the first one commits. It then reads the updated seat count.
 
 ### Options we compared
 | Approach | Benefit | Drawback |
 |---|---|---|
-| Row lock (chosen) | Simple and always correct | Bookings for the same event wait in line |
+| Row lock (`SELECT ... FOR UPDATE`, chosen) | Simple, explicit SQL, and always correct | Bookings for the same event wait in line |
 | Version check (`@Version`) | Readers never wait | Needs code to retry when a save fails |
 | Unique constraint on user and event | Stops one student booking twice | Does not stop overbooking |
 | Redis lock | Works across several servers | Adds a server we don't need yet |
@@ -61,40 +61,35 @@ The database runs this as `SELECT ... FOR UPDATE`. A second booking for the same
 - A college event system gets few bookings per second, so the wait is short. A high-traffic system would switch to version checks with retries, or a booking queue.
 - The seat count is stored twice: `bookedSeats` on the event, and one row per booking. The booking method updates both in the same transaction, so they stay equal.
 
-## ADR-003: in-memory H2 database
+## ADR-003: database setup and schema initialization
 
 Status: accepted.
 
 ### Problem
-Reviewers and teammates need to run the project without installing a database server.
+Reviewers and teammates need to run the project without installing a database server, while production deployments on Render need persistent PostgreSQL support.
 
 ### Decision
 The default configuration uses H2, a database that runs inside the Java process:
 
 ```properties
-spring.datasource.url=jdbc:h2:mem:eventspheredb;DB_CLOSE_DELAY=-1
-spring.h2.console.enabled=true
-spring.jpa.hibernate.ddl-auto=create-drop
+spring.datasource.url=jdbc:h2:mem:eventspheredb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+spring.sql.init.mode=always
 ```
 
-`DataInitializer.java` adds test data on every startup:
+Tables are created on startup from `schema.sql` using portable ANSI SQL supported identically by H2 and PostgreSQL:
+- `users`: stores accounts and credentials.
+- `events`: stores schedules, venues, and capacity.
+- `registrations`: stores confirmed bookings with foreign keys and unique constraints.
+
+`DataInitializer.java` adds test data on startup if `userRepository.count() == 0`:
 - One student account: `student@college.edu` with password `password123`.
-- Five events. Their times are set relative to the current time, so the dashboard always has live, upcoming and previous events.
+- Five events (live, upcoming, and previous relative to current time).
 
-The project also includes the PostgreSQL driver. To use PostgreSQL, add `application-prod.properties`:
-
-```properties
-spring.datasource.url=jdbc:postgresql://localhost:5432/eventsphere
-spring.datasource.username=postgres
-spring.datasource.password=yourpassword
-spring.jpa.hibernate.ddl-auto=update
-```
-
-Then run `java -jar eventsphere.jar --spring.profiles.active=prod`.
+In production (e.g., Render), connecting PostgreSQL via `DATABASE_URL` or `SPRING_DATASOURCE_*` switches the DataSource to PostgreSQL seamlessly without any schema alterations.
 
 ### Cost
-- All data is deleted when the backend restarts.
-- The H2 console at `http://localhost:8080/h2-console` lets you look at the tables during development.
+- When using in-memory H2, all data is deleted when the backend restarts.
+- The H2 console at `http://localhost:8080/h2-console` lets you inspect tables during development when enabled.
 
 ## ADR-004: passwords stored as plain text
 
@@ -142,16 +137,48 @@ The first version stored the user in the browser and sent `userId` with each req
 | `POST /api/events/7/register` with body `{ userId }` | `POST /api/events/7/registrations` with no body |
 
 ### Cost
-- With no `EVENTSPHERE_JWT_SECRET` set, the app makes a random signing key on every startup. A restart logs everyone out. The in-memory database is wiped on restart too, so an old token would otherwise point at a user id that is gone or now belongs to someone else.
-- In production, set `EVENTSPHERE_JWT_SECRET` to at least 32 random characters. The app refuses to start with a shorter one.
-- The token is kept in `localStorage`. A script injected into the page could read it. An `HttpOnly` cookie would prevent that.
+- With no `EVENTSPHERE_JWT_SECRET` set, the app makes a random signing key on every startup. A restart logs everyone out.
+- In production, set `EVENTSPHERE_JWT_SECRET` to at least 32 random characters.
+- The token is kept in `localStorage`.
 - There is no logout on the server. A token stays valid until it expires.
+
+## ADR-006: pure Spring JDBC instead of JPA/Hibernate
+
+Status: accepted.
+
+### Problem
+Hibernate and Spring Data JPA introduced hidden complexity:
+1. ORM proxying, lazy loading quirks (`LazyInitializationException`), and persistence context dirty checking.
+2. Unnecessary overhead and slower startup times inside resource-constrained containers (Render free tier 512MB RAM).
+3. Dialect conflicts and configuration friction when alternating between H2 (in-memory dev) and PostgreSQL (production).
+4. Hidden queries and magic method derivation obscuring what SQL is actually executed.
+
+### Decision
+Replaced `spring-boot-starter-data-jpa` with `spring-boot-starter-jdbc` using Spring's `JdbcTemplate`:
+- Entities (`User`, `Event`, `Registration`) are plain Java POJOs with no JPA/Jakarta annotations.
+- Database schema is explicitly defined in ANSI SQL (`schema.sql`) and executed automatically via `spring.sql.init.mode=always`.
+- Repositories (`JdbcUserRepository`, `JdbcEventRepository`, `JdbcRegistrationRepository`) execute explicit, clear SQL statements and map results using straightforward `RowMapper` definitions.
+- Concurrency control in `findByIdWithLock` is an explicit, native `SELECT ... FOR UPDATE` query executed within a `@Transactional` boundary (`DataSourceTransactionManager`).
+- Complex reads (such as ticket verification and profile registration history) use explicit SQL `JOIN`s, eliminating N+1 query surprises.
+
+### Options we compared
+| Concern | JPA / Hibernate | Pure Spring JDBC (Chosen) |
+|---|---|---|
+| Transparency | Hidden queries & proxy generation | 100% explicit SQL statements |
+| Startup & Memory | Heavier footprint, bytecode parsing | Fast startup, minimal memory overhead |
+| Cross-DB Compatibility | Dialect-dependent mappings | Standard ANSI SQL schema and queries |
+| Debugging | Stack traces through ORM layers | Direct SQL errors pinpointed immediately |
+| Maintenance | High cognitive load | Simple, accessible for students/evaluators |
+
+### Cost
+- Repositories write SQL queries and RowMappers explicitly rather than relying on automatic method name query derivation (`findBy...`).
 
 ## Summary
 | ADR | Decision | Reason |
 |---|---|---|
 | 001 | Separate React app and REST API | Frontend and backend built in parallel |
-| 002 | Row lock when booking | Prevents overbooking |
-| 003 | In-memory H2 with seed data | Runs with no database install |
+| 002 | Row lock when booking (`FOR UPDATE`) | Prevents overbooking |
+| 003 | H2/PostgreSQL with `schema.sql` | Runs with zero install or on cloud PostgreSQL |
 | 004 | Plain-text passwords | Easy test data, prototype only |
-| 005 | Signed login tokens | The server decides who the user is |
+| 005 | Signed login tokens (JWT) | The server decides who the user is |
+| 006 | Pure Spring JDBC (`JdbcTemplate`) | Simplicity, explicit SQL, and lightweight runtime |

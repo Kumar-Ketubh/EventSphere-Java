@@ -46,7 +46,21 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**", "/h2-console/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/events/public").permitAll()
-                .anyRequest().authenticated())
+                .requestMatchers(
+                    "/",
+                    "/index.html",
+                    "/assets/**",
+                    "/favicon.ico",
+                    "/*.ico",
+                    "/*.png",
+                    "/*.svg",
+                    "/*.json",
+                    "/*.js",
+                    "/*.css"
+                ).permitAll()
+                .requestMatchers("/login", "/register", "/dashboard", "/profile", "/tickets/**").permitAll()
+                .requestMatchers("/api/**").authenticated()
+                .anyRequest().permitAll())
             .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()))
             .headers(headers -> headers
                 .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin));

@@ -2,6 +2,8 @@ node_modules/
 dist/
 build/
 target/
+/.agents
+/.claude
 .env
 .env.*
 !.env.example
